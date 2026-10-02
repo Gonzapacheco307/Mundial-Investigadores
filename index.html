@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Investigadores del Mundial</title>
+<style>
+:root{--bg:#f1f8e9;--card:#fff;--ink:#1b3a1f;--mut:#5b6f5e;--acc:#1b8a3a;--gold:#f5b800;--line:#cfe3c8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10200f;--card:#1a2e19;--ink:#e8f5e4;--mut:#9db89c;--line:#2f4a2d}}
+:root[data-theme="dark"]{--bg:#10200f;--card:#1a2e19;--ink:#e8f5e4;--mut:#9db89c;--line:#2f4a2d}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Trebuchet MS','Segoe UI',Arial,sans-serif;line-height:1.4}
+header{background:var(--acc);color:#fff;padding:18px 16px;text-align:center}
+header h1{margin:0;font-size:clamp(22px,5vw,34px)}
+header p{margin:6px 0 0;opacity:.95}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;max-width:1100px;margin:0 auto;padding:16px}
+@media (max-width:800px){main{grid-template-columns:1fr}}
+.panel{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px}
+label{display:block;font-weight:bold;margin:12px 0 4px}
+label small{font-weight:normal;color:var(--mut)}
+input[type=text],textarea,select{width:100%;font:inherit;padding:9px;border:2px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+textarea{min-height:60px;resize:vertical}
+.colors{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input[type=color]{width:54px;height:40px;border:2px solid var(--line);border-radius:10px;padding:2px;background:var(--bg)}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button{font:inherit;font-weight:bold;border:0;border-radius:12px;padding:12px 18px;cursor:pointer;background:var(--gold);color:#222}
+button.sec{background:var(--line);color:var(--ink)}
+.prev{position:sticky;top:8px;align-self:start}
+canvas{width:100%;height:auto;border-radius:12px;border:2px solid var(--line);display:block}
+#msg{margin:8px 0 0;color:var(--mut);min-height:1.2em}
+</style>
+</head>
+<body>
+<header>
+<h1>⚽ Investigadores del Mundial</h1>
+<p>Investigá tu país, completá la ficha y mirá cómo se arma tu póster.</p>
+</header>
+<main>
+<section class="panel">
+<label for="alumno">Tu nombre</label>
+<input type="text" id="alumno" maxlength="40">
+<label for="pais">País que investigo</label>
+<input type="text" id="pais" maxlength="30">
+<label for="capital">Capital</label>
+<input type="text" id="capital" maxlength="30">
+<label for="idioma">Idioma(s) que se hablan</label>
+<input type="text" id="idioma" maxlength="40">
+<label>La bandera <small>(elegí los colores y cómo se acomodan)</small></label>
+<div class="colors">
+<input type="color" id="c1" value="#d62828" aria-label="Color 1">
+<input type="color" id="c2" value="#ffffff" aria-label="Color 2">
+<input type="color" id="c3" value="#1d4ed8" aria-label="Color 3">
+<select id="forma" style="width:auto">
+<option value="h">3 franjas horizontales</option>
+<option value="v">3 franjas verticales</option>
+<option value="c">Fondo y círculo en el centro</option>
+</select>
+</div>
+<label for="simbolo">Un símbolo del país <small>(animal, flor, monumento, escudo...)</small></label>
+<textarea id="simbolo" maxlength="120"></textarea>
+<label for="comida">Comida típica</label>
+<textarea id="comida" maxlength="120"></textarea>
+<label for="fiesta">Una fiesta o tradición</label>
+<textarea id="fiesta" maxlength="140"></textarea>
+<label for="saludo">¿Cómo se saluda? <small>(¡en su idioma!)</small></label>
+<textarea id="saludo" maxlength="100"></textarea>
+<label for="dato">Dato curioso del fútbol en ese país</label>
+<textarea id="dato" maxlength="160"></textarea>
+<label for="fuentes">¿Dónde encontré la información?</label>
+<input type="text" id="fuentes" maxlength="80">
+<div class="btns">
+<button id="bajar">⬇ Descargar mi póster</button>
+<button class="sec" id="ej">Ver un ejemplo</button>
+</div>
+<p id="msg" role="status"></p>
+</section>
+<section class="panel prev">
+<canvas id="cv" width="800" height="1100"></canvas>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const F=['alumno','pais','capital','idioma','simbolo','comida','fiesta','saludo','dato','fuentes','c1','c2','c3','forma'];
+const FONT="'Trebuchet MS','Segoe UI',Arial,sans-serif";
+const cv=$('cv'),ctx=cv.getContext('2d');
+
+function wrap(t,w,max){
+  const words=(t||'').trim().split(/\s+/).filter(Boolean),lines=[];let cur='';
+  for(const wd of words){
+    const test=cur?cur+' '+wd:wd;
+    if(ctx.measureText(test).width>w&&cur){lines.push(cur);cur=wd}else cur=test;
+  }
+  if(cur)lines.push(cur);
+  if(lines.length>max){lines.length=max;lines[max-1]=lines[max-1].replace(/.{0,2}$/,'…')}
+  return lines;
+}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
+
+function flag(x,y,w,h,v){
+  const cols=[v.c1,v.c2,v.c3];
+  ctx.save();rr(x,y,w,h,10);ctx.clip();
+  if(v.forma==='h')cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(x,y+i*h/3,w,h/3+1)});
+  else if(v.forma==='v')cols.forEach((c,i)=>{ctx.fillStyle=c;ctx.fillRect(x+i*w/3,y,w/3+1,h)});
+  else{ctx.fillStyle=cols[1];ctx.fillRect(x,y,w,h);ctx.fillStyle=cols[0];ctx.beginPath();ctx.arc(x+w/2,y+h/2,h*.3,0,7);ctx.fill()}
+  ctx.restore();
+  ctx.lineWidth=5;ctx.strokeStyle='#fff';rr(x,y,w,h,10);ctx.stroke();
+}
+
+function draw(){
+  const v={};F.forEach(k=>v[k]=$(k).value);
+  const W=800,H=1100;
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0f6b2c');g.addColorStop(1,'#1b8a3a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,255,255,.06)';
+  for(let i=0;i<H;i+=110)ctx.fillRect(0,i,W,55);
+  // header
+  ctx.fillStyle='#f5b800';ctx.fillRect(0,0,W,86);
+  ctx.fillStyle='#222';ctx.textAlign='center';ctx.font='bold 34px '+FONT;
+  ctx.fillText('⚽ INVESTIGADORES DEL MUNDIAL',W/2,56);
+  // country
+  let fs=76;const nombre=(v.pais||'Tu país').toUpperCase();
+  ctx.font='bold '+fs+'px '+FONT;
+  while(ctx.measureText(nombre).width>W-80&&fs>30){fs-=4;ctx.font='bold '+fs+'px '+FONT}
+  ctx.fillStyle='#fff';ctx.fillText(nombre,W/2,180);
+  // flag + capital/idioma
+  flag(50,215,300,200,v);
+  ctx.textAlign='left';
+  [['CAPITAL',v.capital],['IDIOMA',v.idioma]].forEach(([l,t],i)=>{
+    const y=215+i*104;
+    ctx.fillStyle='rgba(255,255,255,.95)';rr(375,y,375,96,16);ctx.fill();
+    ctx.fillStyle='#1b8a3a';ctx.font='bold 17px '+FONT;ctx.fillText(l,393,y+27);
+    ctx.fillStyle='#222';ctx.font='bold 24px '+FONT;
+    wrap(t||'…',340,2).forEach((ln,j)=>ctx.fillText(ln,393,y+58+j*27));
+  });
+  // cards
+  const cards=[['🏛 SÍMBOLO',v.simbolo,2,'#fff3c4'],['🍽 COMIDA TÍPICA',v.comida,2,'#ffe0d6'],['🎉 FIESTA O TRADICIÓN',v.fiesta,2,'#dff1ff'],['👋 ASÍ SE SALUDA',v.saludo,2,'#efe0ff'],['⚽ DATO CURIOSO',v.dato,3,'#e2f7d8']];
+  let y=445;
+  cards.forEach(([l,t,mx,col])=>{
+    ctx.font='22px '+FONT;
+    const ls=wrap(t||'…',690,mx),h=48+ls.length*28;
+    ctx.fillStyle=col;rr(50,y,700,h,16);ctx.fill();
+    ctx.fillStyle='#1b5e20';ctx.font='bold 17px '+FONT;ctx.fillText(l,68,y+27);
+    ctx.fillStyle='#222';ctx.font='22px '+FONT;
+    ls.forEach((ln,j)=>ctx.fillText(ln,68,y+56+j*28));
+    y+=h+12;
+  });
+  // footer
+  ctx.fillStyle='rgba(255,255,255,.92)';ctx.font='18px '+FONT;
+  const f=wrap('Fuentes: '+(v.fuentes||'…'),700,2);
+  f.forEach((ln,j)=>ctx.fillText(ln,50,1030+j*22));
+  ctx.textAlign='right';ctx.font='bold 20px '+FONT;
+  ctx.fillText(v.alumno?'Investigó: '+v.alumno:'',750,1078);
+}
+
+F.forEach(k=>$(k).addEventListener('input',draw));
+
+$('ej').onclick=()=>{
+  const e={alumno:'Sofi',pais:'Japón',capital:'Tokio',idioma:'Japonés',simbolo:'La flor de cerezo (sakura) y el monte Fuji',comida:'Sushi y ramen',fiesta:'Hanami: se mira florecer los cerezos con la familia',saludo:'Konnichiwa (Hola)',dato:'Sus hinchas limpian las tribunas después de cada partido.',fuentes:'Enciclopedia de la escuela y un video de la seño',c1:'#ffffff',c2:'#ffffff',c3:'#ffffff',forma:'c'};
+  Object.entries(e).forEach(([k,val])=>$(k).value=val);
+  $('c1').value='#bc002d';draw();
+};
+
+$('bajar').onclick=()=>{
+  const msg=$('msg');
+  cv.toBlob(async blob=>{
+    const name='poster-'+(($('pais').value||'pais').trim().toLowerCase().replace(/\s+/g,'-'))+'.png';
+    try{
+      const dl=window.claude&&claude.use?await claude.use('downloads'):null;
+      if(dl){await dl.save({filename:name,data:blob});msg.textContent='¡Listo! Tu póster se guardó.';return}
+    }catch(e){if(e&&e.code==='declined'){msg.textContent='No se guardó. Podés intentarlo de nuevo.';return}}
+    try{
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+      msg.textContent='Si no se descargó, sacá una captura de pantalla del póster.';
+    }catch(e){msg.textContent='Sacá una captura de pantalla del póster.'}
+  },'image/png');
+};
+draw();
+</script>
+</body>
+</html>
